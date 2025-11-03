@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Viewer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="viewer-container" id="viewerContainer">
+        <!-- Images and end-frames will be dynamically generated here -->
+    </div>
+
+    <div class="navigation-hint" id="navHint">
+        <span class="desktop-hint">Use arrow keys or mouse wheel to navigate</span>
+        <span class="mobile-hint">Swipe to navigate</span>
+    </div>
+    <div class="cell-indicator" id="cellIndicator"></div>
+
+    <div class="zoom-controls" id="zoomControls">
+        <button class="zoom-btn" id="zoomOut" title="Zoom out">-</button>
+        <button class="zoom-btn" id="zoomReset" title="Reset zoom">100%</button>
+        <button class="zoom-btn" id="zoomIn" title="Zoom in">+</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
