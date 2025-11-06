@@ -9,16 +9,18 @@ This viewer automatically discovers and displays multiple panoramic images from 
 ## Features
 
 - **Multi-image support**: Automatically detects and displays `1.png`, `2.png`, `3.png`, etc. from the `images/` folder
-- **Smooth continuous scrolling**: Pixel-perfect scrolling through panoramic images
+- **Smooth continuous scrolling**: Pixel-perfect scrolling through panoramic images optimized for all browsers
 - **Individual end-frames**: Each image has its own dedicated end-frame with artist information
 - **Multiple navigation methods**:
   - Arrow keys (left/right) on desktop - scrolls 100px per press
   - Mouse wheel scrolling - smooth pixel-by-pixel movement
   - Mouse drag - direct 1:1 dragging
   - Touch swipe gestures on mobile - natural scrolling with finger
+- **Magnifying glass (desktop only)**: Right-click to activate a 2.5x magnified circular lens that follows the cursor
+- **Zoom controls (mobile only)**: Touch-friendly +/- buttons with zoom level indicator
+- **Loading indicator**: Animated spinner with smooth fade-out when images are ready
 - **Fully responsive**: Images scale to viewport height while maintaining aspect ratio
 - **Progress indicator**: Shows current position (e.g., "Image 1 - 45%" or "About Image 1")
-- **Zoom functionality**: Zoom controls with +/- buttons and reset
 
 ## File Structure
 
@@ -175,7 +177,8 @@ maxOffset = totalWidth - viewportWidth; // Max scroll position
 - Uses a horizontal flexbox layout (`.viewer-container-inner`)
 - Each image is in an `.image-section` wrapper
 - End-frames are flex items positioned after each image section
-- Single `translateX()` transform moves the entire container horizontally
+- Single `translate3d()` transform moves the entire container horizontally with hardware acceleration
+- Uses `requestAnimationFrame` for smooth updates synchronized with browser rendering
 - No CSS transitions - immediate position updates for smooth scrolling feel
 
 ### Scrolling Behavior
@@ -193,6 +196,22 @@ maxOffset = totalWidth - viewportWidth; // Max scroll position
 - Shows percentage progress through current image (0-100%)
 - Updates indicator in real-time during scrolling
 
+### Magnifying Glass (Desktop Only)
+
+- **Activation**: Right-click on the viewer
+- **Magnification**: 2.5x zoom level in a 200px circular lens
+- **Behavior**: Lens follows cursor in real-time, showing magnified view of content underneath
+- **Implementation**: Clones viewer content and applies scaled transform with precise positioning
+- **Deactivation**: Release mouse button or left-click
+- **Mobile**: Disabled on screens ≤768px width to avoid conflicts with touch navigation
+
+### Loading System
+
+- **Initial state**: Fullscreen loading overlay with animated spinner
+- **Progress**: Displays during image discovery and loading
+- **Completion**: Smooth 0.5s fade-out after all images are ready
+- **Styling**: Purple accent (#667eea) matching end-frame theme
+
 ## Browser Compatibility
 
 - Modern browsers with ES6 support (async/await)
@@ -202,12 +221,14 @@ maxOffset = totalWidth - viewportWidth; // Max scroll position
 
 ## Performance Considerations
 
-- Uses `will-change: transform` for optimized rendering
-- No CSS transitions - direct transform updates for instant feedback
-- Efficient resize handling with dimension recalculation
-- Async image discovery prevents blocking
-- Parallel image loading with `Promise.all()`
-- Real-time position updates without debouncing for maximum responsiveness
+- **Hardware acceleration**: `translate3d()` and `backface-visibility: hidden` force GPU layer promotion
+- **Optimized rendering**: `will-change: transform` hints browser for transform optimization
+- **Frame synchronization**: `requestAnimationFrame` batches updates with browser paint cycles for smooth scrolling across all browsers (especially Chrome)
+- **No CSS transitions**: Direct transform updates for instant feedback
+- **Efficient resize handling**: Dimension recalculation while maintaining scroll position
+- **Async image discovery**: Non-blocking sequential image detection
+- **Parallel image loading**: `Promise.all()` loads all images concurrently
+- **Real-time position updates**: No debouncing for maximum responsiveness
 
 ## Future Enhancements
 
@@ -216,8 +237,9 @@ Potential additions:
 - Support for WebP and other formats
 - Keyboard shortcuts (Home/End keys for first/last image)
 - URL hash navigation for direct linking to specific images
-- Preloader/loading state with progress indicator
+- Loading progress percentage indicator
 - Fullscreen mode
 - Auto-play slideshow mode
 - Lazy loading for better performance with many images
 - Image preloading for smoother transitions
+- Configurable magnification level for magnifying glass

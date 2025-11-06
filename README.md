@@ -7,18 +7,21 @@ A simple, responsive web viewer for displaying multiple panoramic images with sm
 1. Add your panoramic images to the `images/` folder as `1.png`, `2.jpg`, `3.png`, etc.
 2. Open `index.html` in a web browser
 3. Navigate using arrow keys, mouse wheel, drag, or swipe
+4. Right-click (desktop) to activate magnifying glass
 
 **Note**: Supports `.png`, `.jpg`, and `.jpeg` formats. Images are auto-detected by number.
 
 ## Features
 
 - **Automatic image detection** from `images/` folder
-- **Smooth continuous scrolling** - pixel-perfect navigation
+- **Smooth continuous scrolling** - pixel-perfect navigation optimized for all browsers
 - **Individual end-frames** after each image
+- **Magnifying glass (desktop)** - right-click for 2.5x magnified view
+- **Zoom controls (mobile)** - touch-friendly +/- buttons
+- **Loading indicator** - smooth animated spinner while images load
 - **Responsive design** - works on desktop and mobile
 - **Multiple input methods** - keyboard, mouse wheel, drag, touch
 - **Progress indicator** - shows percentage through current image
-- **Zoom functionality** - zoom in/out with controls
 
 ## File Structure
 
