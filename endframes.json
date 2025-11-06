@@ -1,0 +1,26 @@
+[
+  {
+    "after_images": [1],
+    "title": "ARTIST",
+    "bio": "Optional artist bio or description text goes here. You can leave this empty if you don't want a bio section.",
+    "support_section_title": "Support the Artist",
+    "links": [
+      {
+        "icon": "🎨",
+        "text": "Portfolio",
+        "url": "https://yourportfolio.com"
+      },
+      {
+        "icon": "☕",
+        "text": "Buy Me a Coffee",
+        "url": "https://buymeacoffee.com/yourname"
+      }
+    ],
+    "restart_hint": "Press left arrow or swipe right to continue",
+    "style": {
+      "background": "linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)",
+      "title_gradient": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      "text_color": "#cccccc"
+    }
+  }
+]
