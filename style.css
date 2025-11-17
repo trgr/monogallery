@@ -140,15 +140,43 @@ body {
 
 .end-frame {
     position: relative;
-    width: 100vw;
+    width: 100vw; /* Default, will be adjusted by JS */
     height: 100vh;
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    justify-content: flex-start; /* Align content to left to show next image on right */
+    padding-left: 5vw; /* Add some padding from left edge */
+    background: none; /* No background to allow next image to show through */
     overflow-y: auto;
     overflow-x: hidden;
+}
+
+/* Background overlay for end-frame content */
+.end-frame::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 85%; /* Cover the left 85% with background */
+    height: 100%;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    z-index: 0;
+}
+
+.end-frame-content {
+    position: relative;
+    z-index: 1; /* Ensure content is above the background overlay */
+}
+
+.special-end-frame {
+    justify-content: center; /* Center content for special end-frame */
+    padding-left: 0; /* No left padding for special end-frame */
+}
+
+/* Special end-frame gets full background coverage */
+.special-end-frame::before {
+    width: 100%; /* Full width background for special end-frame */
 }
 
 .image-section {

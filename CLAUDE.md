@@ -10,13 +10,17 @@ This viewer automatically discovers and displays multiple panoramic images from 
 
 - **Multi-image support**: Automatically detects and displays `1.png`, `2.png`, `3.png`, etc. from the `images/` folder
 - **Smooth continuous scrolling**: Pixel-perfect scrolling through panoramic images optimized for all browsers
+- **Momentum scrolling**: Mouse drag now preserves momentum for natural, inertial scrolling
 - **Individual end-frames**: Each image has its own dedicated end-frame with artist information
+- **Next image preview**: End-frames show 15% of the next image for visual continuity
+- **Special end-frame**: Configurable final end-frame that appears at the end of all content
 - **Multiple navigation methods**:
   - Arrow keys (left/right) on desktop - scrolls 100px per press
   - Mouse wheel scrolling - smooth pixel-by-pixel movement
-  - Mouse drag - direct 1:1 dragging
+  - Mouse drag - direct 1:1 dragging with momentum
   - Touch swipe gestures on mobile - natural scrolling with finger
 - **Magnifying glass (desktop only)**: Right-click to activate a 2.5x magnified circular lens that follows the cursor
+  - **Adjustable lens size**: Use mouse wheel while magnifying to resize the lens (up to 2x the base size)
 - **Zoom controls (mobile only)**: Touch-friendly +/- buttons with zoom level indicator
 - **Loading indicator**: Animated spinner with smooth fade-out when images are ready
 - **Fully responsive**: Images scale to viewport height while maintaining aspect ratio
@@ -100,6 +104,10 @@ Edit `endframes.json` to customize end-frame content, styling, and positioning:
 - `after_images`: Array of image numbers after which this end-frame appears (e.g., `[1, 3]` = after images 1 and 3)
   - Set to `null` to show after every image
   - Set to `[]` (empty array) to not show any end-frames
+  - Omit this field and use `position: "end"` for a special end-frame at the end of all content
+- `position`: Optional positioning directive
+  - Set to `"end"` to display this end-frame at the very end after all images
+  - Special end-frames take full viewport width and are centered (no next-image preview)
 - `title`: Main heading text
 - `bio`: Optional biography paragraph (leave empty to hide)
 - `support_section_title`: Heading above links
@@ -168,7 +176,17 @@ const displayedImageWidth = viewportHeight * imageAspectRatio;
 
 // Calculate total scrollable width
 totalWidth += displayedImageWidth; // Image width
-totalWidth += viewportWidth;        // End-frame width
+
+// For regular end-frames (with next image preview):
+// End-frame width = viewport width - 15% of next image width
+const nextImageWidth = viewportHeight * nextImageAspectRatio;
+const endFrameWidth = viewportWidth - (nextImageWidth * 0.15);
+totalWidth += endFrameWidth;
+
+// For special end-frames (position: "end"):
+// Takes full viewport width, centered content, no preview
+totalWidth += viewportWidth;
+
 maxOffset = totalWidth - viewportWidth; // Max scroll position
 ```
 
@@ -183,9 +201,20 @@ maxOffset = totalWidth - viewportWidth; // Max scroll position
 
 ### Scrolling Behavior
 
-- **Arrow keys**: Scroll 100px per press (configurable via `scrollSpeed`)
-- **Mouse wheel**: Delta-based scrolling scaled by 0.5x for smoothness
-- **Mouse drag**: 1:1 pixel mapping - drag distance equals scroll distance
+- **Arrow keys**: Smooth animated scrolling with easing
+  - Scrolls 300px per press (configurable via `scrollSpeed`)
+  - Uses easing animation for fluid movement
+  - Multiple presses accumulate smoothly
+- **Mouse wheel**: Smooth animated scrolling with easing
+  - Delta-based scrolling scaled by 0.5x for smoothness
+  - Eases into target position with 0.15 smoothness factor
+  - When magnifier is active, mouse wheel adjusts lens size instead
+- **Mouse drag**: 1:1 pixel mapping with momentum-based inertial scrolling
+  - Tracks velocity during drag (pixels per millisecond)
+  - Applies friction (0.95 deceleration factor) after release
+  - Continues scrolling with momentum until velocity drops below threshold
+  - Automatically stops at boundaries
+  - Cancels any ongoing smooth scrolling animations
 - **Touch drag**: 1:1 pixel mapping with real-time position updates
 - **Pinch-to-zoom detection**: Prevents scrolling during two-finger zoom gestures
 
@@ -199,7 +228,11 @@ maxOffset = totalWidth - viewportWidth; // Max scroll position
 ### Magnifying Glass (Desktop Only)
 
 - **Activation**: Right-click on the viewer
-- **Magnification**: 2.5x zoom level in a 200px circular lens
+- **Magnification**: 2.5x zoom level (fixed magnification)
+- **Lens size**: Base size 200px, adjustable up to 400px (2x base size)
+  - **Mouse wheel control**: Scroll up to increase lens size, scroll down to decrease
+  - Size adjustment is independent of zoom level (only changes visible area, not magnification)
+  - Lens size resets to base (200px) when magnifier is closed
 - **Behavior**: Lens follows cursor in real-time, showing magnified view of content underneath
 - **Implementation**: Clones viewer content and applies scaled transform with precise positioning
 - **Deactivation**: Release mouse button or left-click

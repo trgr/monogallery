@@ -22,5 +22,29 @@
       "title_gradient": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
       "text_color": "#cccccc"
     }
+  },
+  {
+    "position": "end",
+    "title": "Thank You for Viewing",
+    "bio": "You've reached the end of the gallery. Thank you for exploring!",
+    "support_section_title": "Stay Connected",
+    "links": [
+      {
+        "icon": "🏠",
+        "text": "Back to Start",
+        "url": "#"
+      },
+      {
+        "icon": "📧",
+        "text": "Contact",
+        "url": "mailto:your@email.com"
+      }
+    ],
+    "restart_hint": "Scroll left to view the gallery again",
+    "style": {
+      "background": "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)",
+      "title_gradient": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+      "text_color": "#e0e0e0"
+    }
   }
 ]

@@ -17,7 +17,7 @@ class ImageViewer {
         this.currentOffset = 0;
         this.maxOffset = 0;
         this.containerInner = null;
-        this.scrollSpeed = 100; // pixels to scroll per action
+        this.scrollSpeed = 300; // pixels to scroll per action (increased for better UX)
 
         // Touch/swipe handling
         this.touchStartX = 0;
@@ -31,6 +31,15 @@ class ImageViewer {
         this.isDragging = false;
         this.dragStartX = 0;
         this.dragStartOffset = 0;
+        this.dragVelocity = 0;
+        this.lastDragX = 0;
+        this.lastDragTime = 0;
+        this.momentumAnimationFrame = null;
+
+        // Smooth scrolling for keyboard/wheel
+        this.targetOffset = 0;
+        this.smoothScrollFrame = null;
+        this.isSmoothing = false;
 
         // Zoom handling
         this.zoomLevel = 1;
@@ -45,6 +54,8 @@ class ImageViewer {
         // Magnifier
         this.isMagnifying = false;
         this.magnifierSize = 200;
+        this.baseMagnifierSize = 200;
+        this.maxMagnifierSize = 400;
         this.magnificationLevel = 2.5;
 
         this.init();
@@ -55,6 +66,7 @@ class ImageViewer {
 
         // Load end-frame configurations
         await this.loadEndframeConfigs();
+        console.log('Loaded endframe configs:', this.endframeConfigs);
 
         // Discover available images (images/1.png, images/2.png, etc.)
         await this.discoverImages();
@@ -64,8 +76,16 @@ class ImageViewer {
             return;
         }
 
+        console.log(`Discovered ${this.images.length} images`);
+
         // Build the DOM structure
         this.buildViewer();
+
+        // Debug: Check DOM structure
+        const allEndframes = this.containerInner.querySelectorAll('.end-frame');
+        const specialEndframes = this.containerInner.querySelectorAll('.special-end-frame');
+        console.log(`Total end-frames in DOM: ${allEndframes.length}`);
+        console.log(`Special end-frames in DOM: ${specialEndframes.length}`);
 
         // Wait for all images to load
         await this.waitForImages();
@@ -190,6 +210,15 @@ class ImageViewer {
                 });
             }
         });
+
+        // Add special end-frames (position: "end")
+        const specialEndFrames = this.endframeConfigs.filter(config => config.position === 'end');
+        console.log(`Found ${specialEndFrames.length} special end-frames to add`);
+        specialEndFrames.forEach(config => {
+            console.log('Adding special end-frame:', config.title);
+            const endFrame = this.createEndFrame(this.images.length - 1, config, true);
+            this.containerInner.appendChild(endFrame);
+        });
     }
 
     buildEndframeMap() {
@@ -197,6 +226,11 @@ class ImageViewer {
         const map = new Map();
 
         this.endframeConfigs.forEach(config => {
+            // Skip special positioned end-frames (e.g., position: "end")
+            if (config.position === 'end') {
+                return;
+            }
+
             if (config.after_images === null || config.after_images === undefined) {
                 // If after_images is null/undefined, add after every image
                 for (let i = 1; i <= this.images.length; i++) {
@@ -221,14 +255,24 @@ class ImageViewer {
         return map;
     }
 
-    createEndFrame(imageIndex, config) {
+    createEndFrame(imageIndex, config, isSpecial = false) {
         const endFrame = document.createElement('div');
-        endFrame.className = 'end-frame';
+        endFrame.className = isSpecial ? 'end-frame special-end-frame' : 'end-frame';
         endFrame.dataset.imageIndex = imageIndex;
+        if (isSpecial) {
+            endFrame.dataset.isSpecial = 'true';
+        }
 
-        // Apply custom background style if specified
+        // Apply custom background style if specified (via ::before pseudo-element)
         if (config.style && config.style.background) {
-            endFrame.style.background = config.style.background;
+            // Create a unique class name for this end-frame's background
+            const uniqueId = `endframe-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            endFrame.classList.add(uniqueId);
+
+            // Inject custom CSS for this specific end-frame's ::before
+            const style = document.createElement('style');
+            style.textContent = `.${uniqueId}::before { background: ${config.style.background} !important; }`;
+            document.head.appendChild(style);
         }
 
         // Build links HTML
@@ -286,6 +330,8 @@ class ImageViewer {
         let totalWidth = 0;
 
         const imageElements = this.containerInner.querySelectorAll('.panoramic-image');
+        const endFrames = this.containerInner.querySelectorAll('.end-frame');
+
         imageElements.forEach((img, index) => {
             const imageAspectRatio = img.naturalWidth / img.naturalHeight;
             const displayedImageWidth = viewportHeight * imageAspectRatio;
@@ -297,14 +343,51 @@ class ImageViewer {
             section.style.width = `${displayedImageWidth}px`;
 
             totalWidth += displayedImageWidth;
-            totalWidth += viewportWidth; // Add viewport width for the end-frame
+
+            // Check if there's an end-frame after this image (excluding special end-frames)
+            const endFramesForThisImage = Array.from(endFrames).filter(frame =>
+                parseInt(frame.dataset.imageIndex) === index && !frame.dataset.isSpecial
+            );
+
+            if (endFramesForThisImage.length > 0) {
+                // End-frame width is viewport width minus 15% of next image width
+                // (so 15% of next image is visible)
+                const nextImageIndex = index + 1;
+                let endFrameWidth = viewportWidth;
+
+                if (nextImageIndex < imageElements.length) {
+                    const nextImg = imageElements[nextImageIndex];
+                    const nextImageAspectRatio = nextImg.naturalWidth / nextImg.naturalHeight;
+                    const nextImageWidth = viewportHeight * nextImageAspectRatio;
+                    endFrameWidth = viewportWidth - (nextImageWidth * 0.15);
+                }
+
+                // Set the width on all end-frames for this image
+                endFramesForThisImage.forEach(frame => {
+                    frame.style.width = `${endFrameWidth}px`;
+                });
+
+                totalWidth += endFrameWidth * endFramesForThisImage.length;
+            }
+        });
+
+        // Add special end-frames at the end (full viewport width, no preview)
+        const specialEndFrames = Array.from(endFrames).filter(frame => frame.dataset.isSpecial);
+        console.log(`Found ${specialEndFrames.length} special end-frames in DOM during calculateDimensions`);
+        specialEndFrames.forEach(frame => {
+            console.log('Setting width for special end-frame');
+            frame.style.width = `${viewportWidth}px`;
+            totalWidth += viewportWidth;
         });
 
         // Max offset is total width minus viewport width
         this.maxOffset = totalWidth - viewportWidth;
 
+        console.log(`=== DIMENSION CALCULATION ===`);
+        console.log(`Viewport width: ${viewportWidth}px`);
         console.log(`Total scrollable width: ${totalWidth}px`);
         console.log(`Max offset: ${this.maxOffset}px`);
+        console.log(`Special end-frames accounted for: ${specialEndFrames.length}`);
 
         // Clamp current offset to valid range
         this.currentOffset = Math.max(0, Math.min(this.currentOffset, this.maxOffset));
@@ -365,6 +448,15 @@ class ImageViewer {
     }
 
     handleWheel(e) {
+        // If magnifier is active, adjust lens size instead of scrolling
+        if (this.isMagnifying) {
+            e.preventDefault();
+            const delta = e.deltaY;
+            const sizeChange = delta > 0 ? -20 : 20; // Decrease on scroll down, increase on scroll up
+            this.adjustMagnifierSize(sizeChange);
+            return;
+        }
+
         // Allow Ctrl+scroll for zooming (don't prevent default or navigate)
         if (e.ctrlKey || e.metaKey) {
             return;
@@ -432,9 +524,25 @@ class ImageViewer {
             this.hideMagnifier();
         }
 
+        // Cancel any ongoing momentum
+        if (this.momentumAnimationFrame) {
+            cancelAnimationFrame(this.momentumAnimationFrame);
+            this.momentumAnimationFrame = null;
+        }
+
+        // Cancel any ongoing smooth scrolling
+        if (this.smoothScrollFrame) {
+            cancelAnimationFrame(this.smoothScrollFrame);
+            this.smoothScrollFrame = null;
+            this.isSmoothing = false;
+        }
+
         this.isDragging = true;
         this.dragStartX = e.clientX;
         this.dragStartOffset = this.currentOffset;
+        this.lastDragX = e.clientX;
+        this.lastDragTime = performance.now();
+        this.dragVelocity = 0;
         this.container.style.cursor = 'grabbing';
     }
 
@@ -447,7 +555,19 @@ class ImageViewer {
             return;
         }
 
+        const currentTime = performance.now();
         const deltaX = this.dragStartX - e.clientX;
+        const deltaMove = this.lastDragX - e.clientX;
+        const deltaTime = currentTime - this.lastDragTime;
+
+        // Calculate velocity (pixels per millisecond)
+        if (deltaTime > 0) {
+            this.dragVelocity = deltaMove / deltaTime;
+        }
+
+        this.lastDragX = e.clientX;
+        this.lastDragTime = currentTime;
+
         this.currentOffset = Math.max(0, Math.min(this.dragStartOffset + deltaX, this.maxOffset));
         this.updatePosition();
         this.updateIndicator();
@@ -458,12 +578,87 @@ class ImageViewer {
 
         this.isDragging = false;
         this.container.style.cursor = 'grab';
+
+        // Apply momentum if velocity is significant
+        const velocityThreshold = 0.1; // pixels per millisecond
+        if (Math.abs(this.dragVelocity) > velocityThreshold) {
+            this.applyMomentum();
+        }
+    }
+
+    applyMomentum() {
+        const friction = 0.95; // Deceleration factor
+        const minVelocity = 0.05; // Minimum velocity before stopping
+
+        const animate = () => {
+            // Apply velocity to offset
+            this.currentOffset = Math.max(0, Math.min(this.currentOffset + this.dragVelocity * 16, this.maxOffset));
+
+            // Apply friction
+            this.dragVelocity *= friction;
+
+            // Update position
+            this.updatePosition();
+            this.updateIndicator();
+
+            // Continue animation if velocity is significant and we haven't hit boundaries
+            if (Math.abs(this.dragVelocity) > minVelocity &&
+                this.currentOffset > 0 &&
+                this.currentOffset < this.maxOffset) {
+                this.momentumAnimationFrame = requestAnimationFrame(animate);
+            } else {
+                this.momentumAnimationFrame = null;
+                this.dragVelocity = 0;
+            }
+        };
+
+        this.momentumAnimationFrame = requestAnimationFrame(animate);
     }
 
     scroll(delta) {
-        this.currentOffset = Math.max(0, Math.min(this.currentOffset + delta, this.maxOffset));
-        this.updatePosition();
-        this.updateIndicator();
+        // Cancel any ongoing momentum
+        if (this.momentumAnimationFrame) {
+            cancelAnimationFrame(this.momentumAnimationFrame);
+            this.momentumAnimationFrame = null;
+        }
+
+        // Set target offset
+        this.targetOffset = Math.max(0, Math.min(this.currentOffset + delta, this.maxOffset));
+
+        // Start smooth scrolling if not already animating
+        if (!this.isSmoothing) {
+            this.smoothScroll();
+        }
+    }
+
+    smoothScroll() {
+        this.isSmoothing = true;
+        const smoothness = 0.15; // Lower = smoother but slower, higher = faster but less smooth
+
+        const animate = () => {
+            // Calculate difference between current and target
+            const diff = this.targetOffset - this.currentOffset;
+
+            // If we're close enough, snap to target and stop
+            if (Math.abs(diff) < 0.5) {
+                this.currentOffset = this.targetOffset;
+                this.updatePosition();
+                this.updateIndicator();
+                this.isSmoothing = false;
+                this.smoothScrollFrame = null;
+                return;
+            }
+
+            // Move towards target with easing
+            this.currentOffset += diff * smoothness;
+            this.updatePosition();
+            this.updateIndicator();
+
+            // Continue animation
+            this.smoothScrollFrame = requestAnimationFrame(animate);
+        };
+
+        this.smoothScrollFrame = requestAnimationFrame(animate);
     }
 
     updatePosition() {
@@ -608,6 +803,9 @@ class ImageViewer {
     updateMagnifier(e) {
         if (!this.isMagnifying) return;
 
+        // Store last event for size adjustments
+        this.lastMagnifierEvent = e;
+
         const halfSize = this.magnifierSize / 2;
 
         // Position the magnifier centered on the cursor
@@ -647,10 +845,27 @@ class ImageViewer {
             document.removeEventListener('mousemove', this.magnifierMouseMoveHandler);
             this.magnifierMouseMoveHandler = null;
         }
+
+        // Reset magnifier size
+        this.magnifierSize = this.baseMagnifierSize;
+    }
+
+    adjustMagnifierSize(delta) {
+        // Adjust magnifier size (up to 2x base size)
+        this.magnifierSize = Math.max(this.baseMagnifierSize, Math.min(this.maxMagnifierSize, this.magnifierSize + delta));
+
+        // Update magnifier element size
+        this.magnifier.style.width = `${this.magnifierSize}px`;
+        this.magnifier.style.height = `${this.magnifierSize}px`;
+
+        // Re-trigger magnifier update with last known mouse position
+        if (this.lastMagnifierEvent) {
+            this.updateMagnifier(this.lastMagnifierEvent);
+        }
     }
 }
 
 // Initialize the viewer when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    new ImageViewer();
+    window.viewer = new ImageViewer();
 });
