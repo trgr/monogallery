@@ -179,6 +179,14 @@ class ImageViewer {
         this.containerInner.className = 'viewer-container-inner';
         this.container.appendChild(this.containerInner);
 
+        // Add start frames (position: "start")
+        const startFrames = this.endframeConfigs.filter(config => config.position === 'start');
+        startFrames.forEach(config => {
+            const endFrame = this.createEndFrame(0, config, true);
+            endFrame.dataset.position = 'start';
+            this.containerInner.appendChild(endFrame);
+        });
+
         // Build a map of which end-frames should appear after which images
         const endframeMap = this.buildEndframeMap();
 
@@ -226,8 +234,8 @@ class ImageViewer {
         const map = new Map();
 
         this.endframeConfigs.forEach(config => {
-            // Skip special positioned end-frames (e.g., position: "end")
-            if (config.position === 'end') {
+            // Skip special positioned end-frames (e.g., position: "start", "end")
+            if (config.position === 'start' || config.position === 'end') {
                 return;
             }
 
@@ -276,7 +284,7 @@ class ImageViewer {
         }
 
         // Build links HTML
-        const linksHTML = config.links.map(link => `
+        const linksHTML = (config.links || []).map(link => `
             <a href="${link.url}" class="support-link" target="_blank" rel="noopener noreferrer">
                 <span class="link-icon">${link.icon}</span>
                 <span class="link-text">${link.text}</span>
@@ -286,10 +294,40 @@ class ImageViewer {
         // Build bio section HTML (only if bio exists)
         const bioHTML = config.bio ? `<p class="artist-bio">${config.bio}</p>` : '';
 
+        // Build bookmarks section HTML (only if bookmarks exist)
+        let bookmarksHTML = '';
+        if (config.bookmarks && config.bookmarks.length > 0) {
+            const bookmarkLinksHTML = config.bookmarks.map(bookmark => `
+                <button class="bookmark-link" data-target-image="${bookmark.target_image}">
+                    <span class="bookmark-label">${bookmark.label}</span>
+                </button>
+            `).join('');
+            bookmarksHTML = `
+                <div class="bookmark-section">
+                    <h2>Bookmarks</h2>
+                    <div class="bookmark-links">
+                        ${bookmarkLinksHTML}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Build QR section HTML (only if qr config exists)
+        let qrHTML = '';
+        if (config.qr && config.qr.image) {
+            qrHTML = `
+                <div class="qr-section">
+                    <img class="qr-image" src="${config.qr.image}" alt="QR Code">
+                    ${config.qr.text ? `<p class="qr-text">${config.qr.text}</p>` : ''}
+                </div>
+            `;
+        }
+
         endFrame.innerHTML = `
             <div class="end-frame-content">
                 <h1 class="artist-name" style="${config.style && config.style.title_gradient ? `background: ${config.style.title_gradient}; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;` : ''}">${config.title}</h1>
                 ${bioHTML}
+                ${bookmarksHTML}
 
                 <div class="support-section">
                     <h2>${config.support_section_title}</h2>
@@ -298,11 +336,25 @@ class ImageViewer {
                     </div>
                 </div>
 
+                ${qrHTML}
+
                 <div class="restart-hint" style="${config.style && config.style.text_color ? `color: ${config.style.text_color};` : ''}">
                     ${config.restart_hint}
                 </div>
             </div>
         `;
+
+        // Attach bookmark click handlers
+        if (config.bookmarks && config.bookmarks.length > 0) {
+            const buttons = endFrame.querySelectorAll('.bookmark-link');
+            buttons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const targetImage = parseInt(button.dataset.targetImage);
+                    this.scrollToImage(targetImage - 1); // Convert to 0-based index
+                });
+            });
+        }
 
         return endFrame;
     }
@@ -332,6 +384,13 @@ class ImageViewer {
         const imageElements = this.containerInner.querySelectorAll('.panoramic-image');
         const endFrames = this.containerInner.querySelectorAll('.end-frame');
 
+        // Account for start frames first
+        const startFrameElements = Array.from(endFrames).filter(frame => frame.dataset.position === 'start');
+        startFrameElements.forEach(frame => {
+            frame.style.width = `${viewportWidth}px`;
+            totalWidth += viewportWidth;
+        });
+
         imageElements.forEach((img, index) => {
             const imageAspectRatio = img.naturalWidth / img.naturalHeight;
             const displayedImageWidth = viewportHeight * imageAspectRatio;
@@ -359,7 +418,8 @@ class ImageViewer {
                     const nextImg = imageElements[nextImageIndex];
                     const nextImageAspectRatio = nextImg.naturalWidth / nextImg.naturalHeight;
                     const nextImageWidth = viewportHeight * nextImageAspectRatio;
-                    endFrameWidth = viewportWidth - (nextImageWidth * 0.15);
+                    const peekWidth = Math.min(nextImageWidth * 0.15, viewportWidth * 0.25);
+                    endFrameWidth = viewportWidth - peekWidth;
                 }
 
                 // Set the width on all end-frames for this image
@@ -372,10 +432,9 @@ class ImageViewer {
         });
 
         // Add special end-frames at the end (full viewport width, no preview)
-        const specialEndFrames = Array.from(endFrames).filter(frame => frame.dataset.isSpecial);
-        console.log(`Found ${specialEndFrames.length} special end-frames in DOM during calculateDimensions`);
+        // Exclude start frames which are already accounted for above
+        const specialEndFrames = Array.from(endFrames).filter(frame => frame.dataset.isSpecial && frame.dataset.position !== 'start');
         specialEndFrames.forEach(frame => {
-            console.log('Setting width for special end-frame');
             frame.style.width = `${viewportWidth}px`;
             totalWidth += viewportWidth;
         });
@@ -626,6 +685,25 @@ class ImageViewer {
         this.targetOffset = Math.max(0, Math.min(this.currentOffset + delta, this.maxOffset));
 
         // Start smooth scrolling if not already animating
+        if (!this.isSmoothing) {
+            this.smoothScroll();
+        }
+    }
+
+    scrollToImage(imageIndex) {
+        if (imageIndex < 0 || imageIndex >= this.imageSections.length) return;
+
+        const section = this.imageSections[imageIndex];
+        const startOffset = parseFloat(section.dataset.startOffset);
+
+        // Cancel any ongoing momentum
+        if (this.momentumAnimationFrame) {
+            cancelAnimationFrame(this.momentumAnimationFrame);
+            this.momentumAnimationFrame = null;
+        }
+
+        // Set target and animate smoothly
+        this.targetOffset = Math.max(0, Math.min(startOffset, this.maxOffset));
         if (!this.isSmoothing) {
             this.smoothScroll();
         }

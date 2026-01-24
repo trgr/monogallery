@@ -1,8 +1,37 @@
 [
   {
+    "position": "start",
+    "title": "Welcome to the Gallery",
+    "bio": "Explore the panoramic scenes below. Use the bookmarks to jump to a specific image.",
+    "bookmarks": [
+      { "label": "Scene 1", "target_image": 1 },
+      { "label": "Scene 2", "target_image": 2 },
+      { "label": "Scene 3", "target_image": 3 }
+    ],
+    "support_section_title": "About the Artist",
+    "links": [
+      {
+        "icon": "🎨",
+        "text": "Portfolio",
+        "url": "https://yourportfolio.com"
+      },
+      {
+        "icon": "📷",
+        "text": "Instagram",
+        "url": "https://instagram.com/yourname"
+      }
+    ],
+    "restart_hint": "Scroll right to begin",
+    "style": {
+      "background": "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+      "title_gradient": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      "text_color": "#cccccc"
+    }
+  },
+  {
     "after_images": [1],
     "title": "ARTIST",
-    "bio": "Optional artist bio or description text goes here. You can leave this empty if you don't want a bio section.",
+    "bio": "Optional artist bio or description text goes here.",
     "support_section_title": "Support the Artist",
     "links": [
       {
@@ -16,6 +45,10 @@
         "url": "https://buymeacoffee.com/yourname"
       }
     ],
+    "qr": {
+      "image": "images/qr-code.png",
+      "text": "Scan to visit the gallery online"
+    },
     "restart_hint": "Press left arrow or swipe right to continue",
     "style": {
       "background": "linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)",
@@ -27,6 +60,10 @@
     "position": "end",
     "title": "Thank You for Viewing",
     "bio": "You've reached the end of the gallery. Thank you for exploring!",
+    "bookmarks": [
+      { "label": "Back to Scene 1", "target_image": 1 },
+      { "label": "Back to Scene 2", "target_image": 2 }
+    ],
     "support_section_title": "Stay Connected",
     "links": [
       {
